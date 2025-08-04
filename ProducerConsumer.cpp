@@ -59,14 +59,15 @@ int main() {
 //Thread-safe singleton pattern
 class Singleton {
     private:
-        Singleton(){}
         static mutex mtx;
         static Singleton* instance;
-
+        Singleton(){}
     public:
+        Singleton(const Singleton&) = delete;
+        Singleton& operator=(const Singleton&) = delete;
         static Singleton* getInstance() {
             lock_guard<mutex> lock(mtx);
-            if (!instance) {
+            if(!instance) {
                 instance = new Singleton();
             }
             return instance;

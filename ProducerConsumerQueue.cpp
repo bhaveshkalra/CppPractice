@@ -8,7 +8,6 @@
 using namespace std;
 
 //Producer conusmer buffer
-
 queue<int> buffer;
 mutex mtx;
 condition_variable cv;

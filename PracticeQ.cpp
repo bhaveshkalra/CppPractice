@@ -52,6 +52,7 @@ void printThread() {//Consuemr problem
     }
 }
 
+
 void producer(int id) {
     while(true) {
         int prev = acounter.load();
@@ -67,6 +68,7 @@ void producer(int id) {
     }
 }
 
+
 void consumer() {
     while(true) {
         unique_lock<mutex> lock(mtx);
@@ -76,6 +78,7 @@ void consumer() {
         if (acounter.load() >= MAX_COUNT) break;
     }
 }
+
 
 int main() {
     #ifdef DEBUG
