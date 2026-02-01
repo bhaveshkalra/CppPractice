@@ -11,7 +11,7 @@ using namespace std;
 
 std::condition_variable cv;
 std::mutex mtx;
-std::atomic<int> counter(0);
+std::atomic<int> counter(0); //lock free atomic counter is more thread safe counting than normal int count and helps to avoid race conditions
 bool ready = false;
 
 void producer(int id) {
@@ -52,11 +52,31 @@ int main() {
         t.join();
     t_consumer.join();
     cout << "All tasks processed.\n";
+    Singleton2& s = Singleton2::getInstance();
     return 0;
 }
 
+//Thread safe singleton pattern in c++ with lazy init and destructor,
+//used for logging config managers and hardware control modules, no mutex needed for thread safe
+class Singleton2 {
+    private:
+        Singleton2() {cout<<"Instance Created"<<endl;}
+        ~Singleton2() {cout<<"Instance Destroyed"<<endl;}
+    
+    public:
+        Singleton2(const Singleton2&) = delete;
+        Singleton2& operator = (const Singleton2&) = delete;
+
+        static Singleton2& getInstance() {
+            static Singleton2 instance;//thread safe c++11 and above
+            return instance;
+        }
+};
+
 
 //Thread-safe singleton pattern
+mutex Singleton::mtx;
+Singleton* Singleton::instance = nullptr;
 class Singleton {
     private:
         static mutex mtx;
@@ -64,7 +84,7 @@ class Singleton {
         Singleton(){}
     public:
         Singleton(const Singleton&) = delete;
-        Singleton& operator=(const Singleton&) = delete;
+        Singleton& operator = (const Singleton&) = delete;
         static Singleton* getInstance() {
             lock_guard<mutex> lock(mtx);
             if(!instance) {
@@ -74,5 +94,3 @@ class Singleton {
         }
 };
 
-mutex Singleton::mtx;
-Singleton* Singleton::instance = nullptr;

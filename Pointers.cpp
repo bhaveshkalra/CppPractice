@@ -1,4 +1,4 @@
-//Implement reference counting with shared piinter
+//Implement reference counting with shared pointer
 #include<iostream>
 #include <queue>
 #include <mutex>
@@ -42,34 +42,47 @@ class SharedPtr {
         T* operator->(){return ptr;}
 };
 
-// Implement Bounded Blocking Queue
-class BoundedQueue {
-    queue<int> q;
-    int capacity;
-    mutex mtx;
-    condition_variable notFull,notEmpty;
-    
-    public:
-        BoundedQueue(int cap) : capacity(cap) {}
+volatile bool data_ready_flag = false;
+//interrupt occurs
+void interrupt_handler() {
+    data_ready_flag = true; 
+}
 
-        void enqueue(int x) {
-            unique_lock<mutex> lock(mtx);
-            notFull.wait(lock,[&] {return q.size() < capacity;});
-            q.push(x);
-            notEmpty.notify_one();
-        }
+int add(int a, int b) { return a + b; }
 
-        int dequeue() {
-            unique_lock<mutex> lock(mtx);
-            notEmpty.wait(lock,[&] {return !q.empty();});
-            int val = q.front();
-            q.pop();
-            notFull.notify_one();
-            return val;
-        }
+int main() {
+    //unique pointer - sole ownership
+    std::unique_ptr<int> ptr = std::make_unique<int>(10);
 
-        int size() {
-            lock_guard<mutex> lock(mtx);
-            return q.size();
+    //shared pointer-> reference counting
+    std::shared_ptr<int> sp1 = std::make_shared<int>(5);
+    std::shared_ptr<int> sp2 = sp1;  // count++
+
+    //weak pointer
+    std::weak_ptr<int> wp = sp1;
+
+    volatile uint32_t* hardware_status_register = (volatile uint32_t*)0x12345000;
+    //Tells compiler not to optimize reads/writes (used in hardware register reads, ISR communication).
+    //Marking the pointer as volatile ensures the program always reads the current status from memory. 
+    //for real-time ISR communication with main loop
+    interrupt_handler();
+    while (true) {
+        if (data_ready_flag) {
+            // Process the data, always checking the current value in memory
+            //process_data();
+            data_ready_flag = false; 
         }
-};
+    }
+    int x = 5;
+    int *p = &x;
+    int **pp = &p;
+    //Function pointers
+    int (*fptr)(int, int) = &add;
+
+    //Dangling pointer
+    int* p;
+    {
+        int x = 5;
+        p = &x;
+    } // p is now dangling
+}

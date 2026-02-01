@@ -1,5 +1,4 @@
 #include <iostream>
-#include <semaphore>
 #include <mutex>
 #include <queue>
 #include <condition_variable>
@@ -7,7 +6,7 @@
 
 using namespace std;
 
-//Producer conusmer buffer
+//Producer consumer buffer
 queue<int> buffer;
 mutex mtx;
 condition_variable cv;
@@ -46,23 +45,37 @@ int main() {
     thread p3(producer);
     thread c1(consumer);
     p1.join();p2.join();p3.join();c1.join();
-    Singleton& s = Singleton::getInstance();
 }
 
-
-//Thread safe singleton pattern in c++ with lazy init and destructor,
-//used for logging config managers and hardware control modules,no mutex needed for thread safe
-class Singleton {
-    private:
-        Singleton() {cout<<"Instance Created"<<endl;}
-        ~Singleton() {cout<<"Instance Destroyed"<<endl;}
+// Implement Bounded Blocking Queue
+class BoundedQueue {
+    queue<int> q;
+    int capacity;
+    mutex mtx;
+    condition_variable notFull,notEmpty;
     
     public:
-        Singleton(const Singleton&) = delete;
-        Singleton& operator=(const Singleton&) = delete;
+        BoundedQueue(int cap) : capacity(cap) {}
 
-        static Singleton& getInstance() {
-            static Singleton instance;//thread safe c++11
-            return instance;
+        void enqueue(int x) {
+            unique_lock<mutex> lock(mtx);
+            notFull.wait(lock,[&] {return q.size() < capacity;});
+            q.push(x);
+            notEmpty.notify_one();
+        }
+
+        int dequeue() {
+            unique_lock<mutex> lock(mtx);
+            notEmpty.wait(lock,[&] {return !q.empty();});
+            int val = q.front();
+            q.pop();
+            notFull.notify_one();
+            return val;
+        }
+
+        int size() {
+            lock_guard<mutex> lock(mtx);
+            return q.size();
         }
 };
+

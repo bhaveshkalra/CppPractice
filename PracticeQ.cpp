@@ -6,8 +6,10 @@
 #include <vector>
 #include <chrono>
 #include <atomic>
+#include <semaphore>
 
 using namespace std;
+
 
 #define SQUARE(x) ((x) * (x))
 #define MIN3(a, b, c) ((a) < (b) ? ((a) < (c) ? (a) : (c)) : ((b) < (c) ? (b) : (c)))
@@ -16,7 +18,7 @@ using namespace std;
 #undef SQUARE
 #define DEBUG
 
-//Multiple produers consumer problem with atomic counter : Mulitple producers push updates,
+//Multiple produers consumer problem with atomic counter : Multiple producers push updates,
 //single consumer reads them
 //Thread 1 increments a counter up to a certain limit.
 //Thread 2 waits and prints the counter every time it changes.
@@ -27,12 +29,12 @@ const int MAX_COUNT = 10;
 atomic<int> acounter(0);
 mutex mtx;
 condition_variable cv;//allows thread to wait and signal for changes
-bool updated = false;//flag for synchromization between producer and consumer
+bool updated = false;//flag for synchronization between producer and consumer
 
 void incrementThread() { //Producer problem
     for (int i = 1; i <= MAX_COUNT; ++i) {
         {
-            lock_guard<mutex> lock(mtx); //lock guard locks the mutex in safe way
+            lock_guard<mutex> lock(mtx); //lock guard locks the mutex in safe way, // RAII-style lock
             counter = i;
             updated = true;
         }
@@ -41,7 +43,7 @@ void incrementThread() { //Producer problem
     }
 }
 
-void printThread() {//Consuemr problem
+void printThread() {//Consumer problem
     while (true) {
         unique_lock<mutex> lock(mtx); //for using cv.wait()
         cv.wait(lock, [] { return updated; });  //wait until counter is updated to true
@@ -80,6 +82,18 @@ void consumer() {
 }
 
 
+
+std::counting_semaphore<2> sem(2); // allow 2 threads at once
+
+void task(int id) {
+    sem.acquire(); // waits if more than 2 threads
+    std::cout << "Thread " << id << " entered\n";
+    std::this_thread::sleep_for(std::chrono::seconds(1));
+    std::cout << "Thread " << id << " leaving\n";
+    sem.release();
+}
+
+
 int main() {
     #ifdef DEBUG
         cout << "Debug mode\n";
@@ -87,14 +101,20 @@ int main() {
     //thread t1(incrementThread);
     //thread t2(printThread);
     vector<thread> producers;
-    thread tConumser(consumer);
+    thread tConsumer(consumer);
     for (int i = 1; i <= MAX_PRODUCERS ; i++) {
         producers.emplace_back(producer,i);
     }
     for (auto &tp : producers) {
         tp.join();
     }
-    tConumser.join();
+    tConsumer.join();
+
+    std::thread t1(task, 1);
+    std::thread t2(task, 2);
+    std::thread t3(task, 3);
+    std::thread t4(task, 4);
+    t1.join(); t2.join(); t3.join(); t4.join();
 }
 
 
@@ -106,11 +126,11 @@ class MyDatas {
         data = new int[10];
         strdata = new char[10];
     }
-    MyDatas(const char* str) {
+    MyDatas(const char* str) {//copy str
         strdata = new char[strlen(str) + 1];
         strcpy(strdata, str);
     }
-    MyDatas(const MyDatas& other) {
+    MyDatas(const MyDatas& other) {//copy data
         data = new int[10];
         std::copy(other.data, other.data + 10, data);
     }
@@ -127,16 +147,18 @@ class MyDatas {
          */
     }
     ~MyDatas() {
-        delete[] data;delete[] strdata;
+        delete[] data;
+        delete[] strdata;
     }
 };
 
 
+//Spin Lock -> the thread continuously checks (spins) until the lock becomes available.
 class SpinLock {
     atomic_flag flag = ATOMIC_FLAG_INIT;
     public:
         void lock() {
-            while (flag.test_and_set(memory_order_acquire)) {}//busy and wait
+            while (flag.test_and_set(memory_order_acquire)) {}//busy wait
         }
         void unlock() {
             flag.clear(memory_order_release);
@@ -153,3 +175,4 @@ void increment() {
         spin.unlock();
     }
 }
+
