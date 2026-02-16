@@ -70,6 +70,19 @@ class A {
         }
 };
 
+bool checkIndian(int x) {
+    int x = 0x12345678;
+    char* c = (char*)&x;
+    if (*c == 1) cout << "Little Endian";
+    else cout << "Big Endian";
+    unsigned char* p = (unsigned char*)&x;
+
+    for (int i = 0; i < sizeof(x); i++) {
+        printf("%02X ", p[i]);
+    }
+    cout<<endl;
+}
+
 
 //Deadlock Scenario in threads
 std::mutex m1, m2;
