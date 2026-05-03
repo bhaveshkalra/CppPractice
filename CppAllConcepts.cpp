@@ -44,6 +44,19 @@ class String {
 			return *this;
 		}
 
+		// Move assignment operator
+		String& operator=(String&& other) noexcept {
+			if (this != &other) {
+				// Free existing resource
+				if (res) delete[] res;
+				res = other.res;
+				len = other.len;
+				other.res = nullptr;
+				other.len = 0;
+			}
+			return *this;
+		}
+
 		//copy and swap idiom(CAS) 
 		String& operator=(String other) {
 			Swap(*this, other);
@@ -59,8 +72,8 @@ class String {
 			return len;
 		}
 
-		friend ostream& operator<<(std::ostream& out, const String& str);
-		friend istream& operator>>(istream& in, String& str);
+		friend ostream& operator<<(ostream& out, const String& str);
+		friend istream& operator>>(istream& in, const String& str);
 
 		~String() {
 			if (res) {
@@ -81,10 +94,66 @@ ostream& operator<<(ostream& out, const String& str) {
 	return out;
 }
 
-istream& operator>>(istream& in, String& str) {
+istream& operator>>(istream& in, const String& str) {
 	in >> str.res;
 	return in;
 }
+
+
+int main() {
+	String str1;// default constructor
+	String str2 = "hello"; // parameterized constructor
+	String str3 = str1; // copy constructor
+	str3 = str2; // copy assignment operator
+	int len = str2.length(); // member function
+
+	cout << str2 << str3 << str1; //overload operator <<
+
+	cin >> str1; // overload >>
+
+	String str5(str1); // copy constructor
+
+	String str6 = std::move(str2); // move constructor
+	str6 = std::move(str1); // move assignment
+
+
+	//Unique Pointer
+	uniqueptr<int> ptr1(new int(10));
+	//uniqueptr<int> ptr2(ptr1); // error: copy constructor is deleted
+	//uniqueptr<int> ptr3 = ptr1; //compilation error
+	uniqueptr<int> ptr4(new int(500));
+	//ptr4 = ptr3; //compilation error : copy assignment is deleted
+	uniqueptr<int> ptr3 = std::move(ptr1); // move constructor
+	ptr4 = std::move(ptr3); // move assigmment
+
+	//ptr1->func();
+	cout << *(ptr4);
+	ptr4.get();
+	ptr4.reset(new int(20));
+
+
+	//Shared Pointers
+	sharedptr<int> ptr11;//default
+	sharedptr<int> ptr21(new int(10));//parameter
+	sharedptr<int> ptr31(ptr21);//copy 
+	ptr31 = ptr21; //copy assignment
+	sharedptr<int> ptr41(std::move(ptr11)); // move copy constructor
+	ptr21 = move(ptr31); // move copy assignment
+
+	ptr11.reset();
+	ptr11.reset(new int(5));
+	
+	cout << (*ptr11);
+	//ptr11->func();
+
+	ptr11.get();//raw pointer 
+
+	ptr31.get_count(); //no. of objects pointing to same resource
+
+	//destructors will be called automatically when objects go out of scope, freeing memory & preventing leaks.
+	return 0;
+}
+
 
 
 //Smart Pointers -> Heap memory does not gets freed up if we forget to delete it, 
@@ -99,7 +168,7 @@ class uniqueptr {
 		uniqueptr(T* a = nullptr) : ptr(a) {
 			cout << "ctor";
 		}
-		uniqueptr(const uniqueptr<T>& ptr) = delete; // disable copy constructor)
+		uniqueptr(const uniqueptr<T>& ptr) = delete; // disable copy constructor
 		uniqueptr& operator=(const uniqueptr<T>& ptr) = delete; // disable copy assignment operator
 
 		uniqueptr(uniqueptr<T>&& other) noexcept { // move constructor -> transfer ownership R - value reference
@@ -182,7 +251,7 @@ class sharedptr {
 			cout << "shared copy ctor";
 		}
 
-		sharedptr<T>(sharedptr<T>&& ptr) { // move constructor
+		sharedptr<T>(sharedptr<T>&& ptr) noexcept { // move constructor
 			res = ptr.res;
 			counter = ptr.counter;
 			ptr.res = nullptr;
@@ -201,7 +270,7 @@ class sharedptr {
 			return *this;
 		}
 
-		sharedptr<T>& operator=(sharedptr<T>&& ptr) { // move assignment operator 
+		sharedptr<T>& operator=(sharedptr<T>&& ptr) noexcept { // move assignment operator 
 			if (this != &ptr) {
 				decrementCounter(); // decrement current resource count
 				res = ptr.res;
@@ -240,58 +309,3 @@ class sharedptr {
 			cout << "dtor";
 		}
 };
-
-
-int main() {
-	String str1;// default constructor
-	String str2 = "hello"; // parameterized constructor
-	String str3 = str1; // copy constructor
-	str3 = str2; // copy assignment operator
-	int len = str2.length(); // member function
-
-	cout << str2 << str3 << str1; //overlaod operator<<
-
-	cin >> str1; // overload >>
-
-	String str5(str1); // copy constructor
-
-	String str6 = std::move(str2); // move constructor
-
-
-	//Unique Pointer
-	uniqueptr<int> ptr1(new int(10));
-	//uniqueptr<int> ptr2(ptr1); // error: copy constructor is deleted
-	//uniqueptr<int> ptr3 = ptr1; //compilation error
-	uniqueptr<int> ptr4(new int(500));
-	//ptr4 = ptr3; //compilation error
-	uniqueptr<int> ptr3 = std::move(ptr1); // move constructor
-	ptr4 = std::move(ptr3);
-
-	//ptr1->func();
-	cout << *(ptr4);
-	ptr4.get();
-	ptr4.reset(new int(20));
-
-
-	//Shared Pointers
-	sharedptr<int> ptr11;//default
-	sharedptr<int> ptr21(new int(10));//parameter
-	sharedptr<int> ptr31(ptr21);//copy 
-	ptr31 = ptr21; //copy assignment
-	sharedptr<int> ptr4(std::move(ptr11)); // move copy constructor
-	ptr21 = move(ptr31); // move copy assignment
-
-	ptr1.reset();
-	ptr1.reset(new int(5));
-	
-	cout << (*ptr1);
-	//ptr11->func();
-
-	ptr1.get();//raw pointer 
-
-	ptr31.get_count(); //no. of objects pointing to same resource
-
-	//destructors will be called automatically when objects go out of scope, freeing memory & preventing leaks.
-	return 0;
-}
-
